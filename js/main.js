@@ -525,6 +525,7 @@
         '<h2 id="modalTajuk">' + esc(x.Tajuk) + '</h2>' +
         (video ? '<div class="video"><iframe src="' + esc(video) + '" title="Video: ' + esc(x.Tajuk) + '" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>' : '') +
         '<div class="modal-kandungan">' + perenggan(x.Kandungan) + '</div>' +
+        (/^https?:\/\//.test(x.Sumber || '') ? '<p class="modal-sumber"><a href="' + esc(x.Sumber) + '" target="_blank" rel="noopener noreferrer">Baca sumber asal</a></p>' : '') +
       '</div>';
 
     document.getElementById('modal').hidden = false;

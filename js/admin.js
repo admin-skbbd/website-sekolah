@@ -38,7 +38,8 @@
         { n: 'Tarikh', l: 'Tarikh', jenis: 'date' },
         { n: 'Status', l: 'Status', jenis: 'select', pilihan: ['Terbit', 'Draf'], bantu: 'Pengumuman berstatus Draf tidak dipaparkan kepada orang awam.' },
         { n: 'Kandungan', l: 'Kandungan', jenis: 'textarea', wajib: true },
-        { n: 'Gambar', l: 'Gambar (pilihan)', jenis: 'gambar' }
+        { n: 'Gambar', l: 'Gambar (pilihan)', jenis: 'gambar' },
+        { n: 'Sumber', l: 'Pautan sumber (pilihan)', jenis: 'url', bantu: 'Pautan ke berita atau pekeliling asal, jika ada.' }
       ]
     },
     pentadbiran: {
@@ -101,7 +102,7 @@
   ];
 
   const MENU_ADMIN = [
-    { id: 'homepage', label: 'Homepage' },
+    { id: 'homepage', label: 'Homepage', lencana: 'lencanaAI' },
     { id: 'pentadbiran', label: 'Pentadbiran' },
     { id: 'kurikulum', label: 'Kurikulum' },
     { id: 'hem', label: 'HEM' },
@@ -109,6 +110,7 @@
     { id: 'aktiviti', label: 'Aktiviti sekolah' },
     { id: 'pautan', label: 'Pautan' },
     { id: 'aduan', label: 'Aduan' },
+    { id: 'ai', label: 'Pembantu AI' },
     { pemisah: true },
     { id: 'kataLaluan', label: 'Tukar kata laluan' }
   ];
@@ -122,6 +124,7 @@
     aktiviti: ['Aktiviti sekolah', 'Kongsi gambar dan video program sekolah.'],
     pautan: ['Pautan', 'Pautan ke laman web rasmi kerajaan dan sistem pendidikan.'],
     aduan: ['Aduan', 'Aduan dan maklum balas yang dihantar oleh orang awam.'],
+    ai: ['Pembantu AI', 'AI mencari berita penting setiap hari dan mencadangkannya sebagai draf pengumuman.'],
     kataLaluan: ['Tukar kata laluan', 'Kata laluan ini dikongsi oleh semua guru. Maklumkan kepada guru lain selepas menukarnya.']
   };
 
@@ -312,7 +315,8 @@
     const nav = MENU_ADMIN.map(function (m) {
       if (m.pemisah) return '<span class="sisi-pemisah" aria-hidden="true"></span>';
       return '<button type="button" data-seksyen="' + m.id + '">' + esc(m.label) +
-        (m.id === 'aduan' ? '<span class="lencana" id="lencanaAduan" hidden></span>' : '') + '</button>';
+        (m.id === 'aduan' ? '<span class="lencana" id="lencanaAduan" hidden></span>' : '') +
+        (m.lencana ? '<span class="lencana lencana-ai" id="' + m.lencana + '" hidden></span>' : '') + '</button>';
     }).join('');
 
     skrin().innerHTML =
@@ -346,9 +350,10 @@
     const awal = location.hash.slice(1);
     bukaSeksyen(TAJUK_SEKSYEN[awal] ? awal : 'homepage');
     muatTab('Aduan').then(kemaskiniLencana).catch(function () {});
+    muatTab('Pengumuman').then(kemaskiniLencanaAI).catch(function () {});
   }
 
-  function bukaSeksyen(id) {
+  function bukaSeksyen(id, sub) {
     document.querySelectorAll('[data-seksyen]').forEach(function (b) {
       if (b.dataset.seksyen === id) b.setAttribute('aria-current', 'page');
       else b.removeAttribute('aria-current');
@@ -360,7 +365,8 @@
     u.innerHTML = '<div class="kepala-seksyen"><h1>' + esc(t[0]) + '</h1><p>' + esc(t[1]) + '</p></div><div id="isiSeksyen"></div>';
     const isi = document.getElementById('isiSeksyen');
 
-    if (id === 'homepage') lukisHomepage(isi, 'maklumat');
+    if (id === 'homepage') lukisHomepage(isi, sub || 'maklumat');
+    else if (id === 'ai') lukisAI(isi);
     else if (id === 'aduan') lukisAduan(isi, 'Semua');
     else if (id === 'kataLaluan') lukisKataLaluan(isi);
     else lukisModulRekod(isi, id);
@@ -614,6 +620,7 @@
       (dom ? 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(dom) : '');
     const meta = [];
     if (dom) meta.push('<span>' + esc(dom) + '</span>');
+    if (x.Oleh === 'AI') meta.push('<span class="status status-ai">Cadangan AI</span>');
     if (x.Status === 'Draf') meta.push('<span class="status status-draf">Draf</span>');
     if (x.Jawatan) meta.push('<span>' + esc(x.Jawatan) + '</span>');
     if (x.Kategori) meta.push('<span>' + esc(x.Kategori) + '</span>');
@@ -625,6 +632,7 @@
       '<div class="rekod-gambar">' + (g ? '<img src="' + esc(g) + '" alt="" loading="lazy">' : esc(inisial(x[k.lajurTajuk]))) + '</div>' +
       '<div class="rekod-teks"><strong>' + esc(x[k.lajurTajuk]) + '</strong><div class="rekod-meta">' + meta.join('') + '</div></div>' +
       '<div class="rekod-tindakan">' +
+        (k.tab === 'Pengumuman' && x.Status === 'Draf' ? '<button type="button" class="butang-kecil terbit" data-terbit="' + esc(x.ID) + '">Terbit</button>' : '') +
         '<button type="button" class="butang-kecil" data-edit="' + esc(x.ID) + '">Edit</button>' +
         '<button type="button" class="butang-kecil bahaya" data-padam="' + esc(x.ID) + '">Padam</button>' +
       '</div>' +
@@ -645,6 +653,7 @@
     let data;
     try { data = await muatTab(k.tab); }
     catch (e) { sb.innerHTML = ralatMuat(e.message); return; }
+    if (k.tab === 'Pengumuman') kemaskiniLencanaAI(data);
     if (k.susun) data = data.slice().sort(function (a, b) { return (Number(a.Susunan) || 999) - (Number(b.Susunan) || 999); });
 
     function lukis(q) {
@@ -660,7 +669,21 @@
     sb.addEventListener('click', async function (e) {
       const ed = e.target.closest('[data-edit]');
       const pd = e.target.closest('[data-padam]');
-      if (ed) {
+      const tb = e.target.closest('[data-terbit]');
+      if (tb) {
+        tb.disabled = true;
+        tb.textContent = 'Menerbit…';
+        try {
+          await panggil('kemaskini', { tab: k.tab, id: tb.dataset.terbit, data: { Status: 'Terbit' } });
+          batalCache(k.tab);
+          toast('Pengumuman diterbitkan di website.');
+          lukisModulRekod(bekas, kunci);
+        } catch (err) {
+          toast(err.message, 'ralat');
+          tb.disabled = false;
+          tb.textContent = 'Terbit';
+        }
+      } else if (ed) {
         lukisBorangRekod(bekas, kunci, data.find(function (x) { return x.ID === ed.dataset.edit; }));
       } else if (pd) {
         const item = data.find(function (x) { return x.ID === pd.dataset.padam; });
@@ -830,6 +853,88 @@
       });
     });
     window.scrollTo(0, 0);
+  }
+
+
+  /* ================= PEMBANTU AI ================= */
+
+  function kemaskiniLencanaAI(data) {
+    const el = document.getElementById('lencanaAI');
+    if (!el || !data) return;
+    const n = data.filter(function (x) { return x.Oleh === 'AI' && x.Status === 'Draf'; }).length;
+    el.textContent = n;
+    el.hidden = n === 0;
+    el.setAttribute('aria-label', n + ' cadangan AI menunggu semakan');
+  }
+
+  async function lukisAI(bekas) {
+    bekas.innerHTML = memuatKecil();
+    let t;
+    try { t = (await panggil('tetapanAI')).data; }
+    catch (e) { bekas.innerHTML = ralatMuat(e.message); return; }
+    const log = t.log;
+
+    const medanKunci = { n: 'kunci', l: 'Kunci API Gemini', jenis: 'password', auto: 'off',
+      bantu: t.adaKunci
+        ? 'Kunci sudah disimpan dengan selamat. Biarkan kosong untuk mengekalkannya, atau tampal kunci baharu untuk menggantikannya.'
+        : 'Dapatkan kunci percuma di aistudio.google.com: log masuk dengan akaun Google, klik Get API key, kemudian Create API key. Salin kunci tersebut dan tampal di sini.' };
+    const medanKataKunci = { n: 'kataKunci', l: 'Kata kunci carian', jenis: 'textarea', baris: 8,
+      bantu: 'Satu kata kunci setiap baris. {TAHUN} akan ditukar kepada tahun semasa secara automatik.' };
+    const medanModel = { n: 'model', l: 'Nama model AI',
+      bantu: 'Biarkan kosong untuk pilihan automatik. Isi hanya jika diminta, contohnya gemini-2.5-flash.' };
+
+    bekas.innerHTML =
+      '<div class="panel-status">' +
+        '<div><span>Kunci API</span><strong>' + (t.adaKunci ? 'Sudah ditetapkan' : 'Belum ditetapkan') + '</strong></div>' +
+        '<div><span>Carian automatik</span><strong>' + (t.aktif ? 'Aktif setiap hari, selepas 7 pagi' : 'Tidak aktif') + '</strong></div>' +
+        '<div><span>Carian terakhir</span><strong>' + (log ? esc(log.masa) : 'Belum pernah') + '</strong>' +
+          (log ? '<small class="' + (log.ralat ? 'teks-ralat' : '') + '">' + esc(log.mesej) + '</small>' : '') + '</div>' +
+      '</div>' +
+      '<div class="baris-butang">' +
+        '<button type="button" class="butang butang-emas" id="btnCariSekarang">Cari berita sekarang</button>' +
+        '<button type="button" class="butang butang-biasa" id="btnLihatDraf">Semak cadangan AI</button>' +
+      '</div>' +
+      '<form class="borang-admin" novalidate>' +
+        '<h2>Tetapan</h2>' +
+        medanHTML(medanKunci, '') +
+        '<label class="semak"><input type="checkbox" name="aktif"' + (t.aktif ? ' checked' : '') + '> Aktifkan carian automatik setiap hari (selepas 7 pagi)</label>' +
+        medanHTML(medanKataKunci, t.kataKunci) +
+        '<details class="lanjutan"><summary>Tetapan lanjutan</summary>' + medanHTML(medanModel, t.model) + '</details>' +
+        '<div class="borang-tindakan"><button type="submit" class="butang butang-emas">Simpan tetapan</button></div>' +
+      '</form>' +
+      '<div class="nota-ai">' +
+        '<p><strong>Cara ia berfungsi:</strong> pembantu AI mencari berita terkini di Google News menggunakan kata kunci di atas. AI kemudian memilih maksimum 3 berita yang relevan untuk sekolah rendah dan menulis ringkasan berdasarkan tajuk berita.</p>' +
+        '<p>Semua cadangan disimpan sebagai <strong>Draf</strong> dan tidak dipaparkan kepada orang awam. Guru perlu menyemak dan menekan <strong>Terbit</strong> di Homepage, tab Pengumuman. Sentiasa buka pautan sumber untuk memastikan maklumat tepat sebelum diterbitkan.</p>' +
+      '</div>';
+
+    document.getElementById('btnLihatDraf').addEventListener('click', function () { bukaSeksyen('homepage', 'pengumuman'); });
+
+    document.getElementById('btnCariSekarang').addEventListener('click', function (e) {
+      denganButang(e.currentTarget, 'Sedang mencari… (sehingga 1 minit)', async function () {
+        const j = await panggil('jalankanAI');
+        batalCache('Pengumuman');
+        toast(j.data.mesej, j.data.ralat ? 'ralat' : '');
+        lukisAI(bekas);
+        muatTab('Pengumuman').then(kemaskiniLencanaAI).catch(function () {});
+      });
+    });
+
+    const f = bekas.querySelector('form');
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const d = kumpul(f, [medanKunci, medanKataKunci, medanModel]);
+      d.aktif = f.elements.aktif.checked;
+      if (d.aktif && !t.adaKunci && !d.kunci) {
+        toast('Sila tampal kunci API Gemini sebelum mengaktifkan carian automatik.', 'ralat');
+        f.elements.kunci.focus();
+        return;
+      }
+      denganButang(f.querySelector('[type="submit"]'), 'Menyimpan…', async function () {
+        await panggil('simpanTetapanAI', { data: d });
+        toast('Tetapan pembantu AI disimpan.');
+        lukisAI(bekas);
+      });
+    });
   }
 
 

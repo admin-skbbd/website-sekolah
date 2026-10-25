@@ -137,6 +137,25 @@
 .butiran dd { margin: 0; }
 .kotak-aduan { margin-bottom: 1.5rem; padding: 1rem 1.25rem; border-left: 4px solid var(--emas); border-radius: 6px; background: var(--kertas); white-space: pre-wrap; }
 
+/* ---------------- Pembantu AI ---------------- */
+.status-ai { background: #EDE9FE; color: #5B21B6; }
+.lencana-ai { background: #7C3AED; }
+.butang-kecil.terbit { background: var(--emas); border-color: var(--emas); color: var(--biru-pekat); }
+.butang-kecil.terbit:hover { background: var(--emas-cerah); }
+.panel-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; max-width: 820px; margin-bottom: 1.25rem; }
+.panel-status > div { display: flex; flex-direction: column; gap: .2rem; padding: 1rem 1.15rem; background: #fff; border: 1px solid var(--garis); border-radius: var(--jejari); }
+.panel-status span { color: var(--kelabu); font-size: .83rem; }
+.panel-status strong { color: var(--biru-pekat); }
+.panel-status small { color: var(--kelabu); font-size: .82rem; line-height: 1.45; }
+.panel-status .teks-ralat { color: #B42318; }
+.baris-butang { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.5rem; }
+.semak { display: flex; align-items: center; gap: .6rem; margin-bottom: 1.1rem; font-weight: 600; font-size: .93rem; cursor: pointer; }
+.semak input { width: 18px; height: 18px; accent-color: var(--biru-pekat); }
+.lanjutan { margin-bottom: 1rem; }
+.lanjutan summary { margin-bottom: .75rem; color: var(--biru-sederhana); font-weight: 600; cursor: pointer; }
+.nota-ai { max-width: 820px; margin-top: 1.5rem; padding: 1rem 1.25rem; border-left: 4px solid var(--emas); border-radius: 6px; background: #fff; color: var(--kelabu); font-size: .9rem; }
+.nota-ai p:last-child { margin-bottom: 0; }
+
 /* ---------------- Notifikasi ---------------- */
 .toast {
   position: fixed; left: 50%; bottom: 1.5rem; z-index: 300;
