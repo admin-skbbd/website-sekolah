@@ -73,6 +73,12 @@
     return /^https:\/\//.test(u) ? u : '';
   }
 
+  // Minta Google hantar gambar dalam saiz yang sesuai (lebih laju)
+  function saiz(u, w) {
+    if (!u) return '';
+    return /^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]+$/.test(u) ? u + '=w' + w : u;
+  }
+
   function senaraiGambar(s) {
     return String(s || '').split(/[,\n]/).map(urlGambar).filter(Boolean);
   }
@@ -108,18 +114,22 @@
 
   /* ================= AMBIL DATA ================= */
 
-  async function ambilData() {
-    const KUNCI = 'dataSekolah';
-    try {
-      const c = JSON.parse(sessionStorage.getItem(KUNCI) || 'null');
-      if (c && Date.now() - c.masa < CONFIG.CACHE_MINIT * 60000) return c.data;
-    } catch (e) { /* abaikan */ }
+  // Data disimpan dalam pelayar supaya halaman seterusnya dibuka serta-merta
+  const KUNCI_SIMPANAN = 'dataSekolah_v2';
 
+  function bacaSimpanan() {
+    try {
+      const c = JSON.parse(localStorage.getItem(KUNCI_SIMPANAN) || 'null');
+      if (c && c.data) return c;
+    } catch (e) { /* abaikan */ }
+    return null;
+  }
+
+  async function ambilTerkini() {
     const r = await fetch(API + '?action=semua');
     const j = await r.json();
     if (!j.ok) throw new Error(j.mesej || 'Ralat pelayan');
-
-    try { sessionStorage.setItem(KUNCI, JSON.stringify({ masa: Date.now(), data: j.data })); } catch (e) { /* abaikan */ }
+    try { localStorage.setItem(KUNCI_SIMPANAN, JSON.stringify({ masa: Date.now(), data: j.data })); } catch (e) { /* abaikan */ }
     return j.data;
   }
 
@@ -187,7 +197,7 @@
     document.getElementById('namaSekolah').textContent = nama;
     document.getElementById('motoSekolah').textContent = t.moto || '';
     const lambang = document.getElementById('lambang');
-    const logo = urlGambar(t.logo);
+    const logo = saiz(urlGambar(t.logo), 160);
     if (logo) lambang.innerHTML = '<img src="' + esc(logo) + '" alt="">';
     else lambang.textContent = inisial(nama);
     const info = INFO_HALAMAN[HALAMAN];
@@ -195,12 +205,12 @@
   }
 
   function isiTicker(senarai) {
-    if (!senarai.length) return;
+    const el = document.getElementById('ticker');
+    if (!senarai.length) { el.hidden = true; el.innerHTML = ''; return; }
     const pautan = senarai.slice(0, 8).map(function (p) {
       return '<a href="#" data-item="' + esc(simpan('Pengumuman', p)) + '">' + esc(p.Tajuk) + '</a>';
     }).join('<span class="ticker-titik" aria-hidden="true">◆</span>') + '<span class="ticker-titik" aria-hidden="true">◆</span>';
 
-    const el = document.getElementById('ticker');
     el.innerHTML =
       '<div class="bekas ticker-dalam">' +
         '<span class="ticker-label">Pengumuman</span>' +
@@ -253,7 +263,7 @@
 
   function kad(tab, x) {
     const kunci = simpan(tab, x);
-    const g = senaraiGambar(x.Gambar)[0];
+    const g = saiz(senaraiGambar(x.Gambar)[0], 640);
     const adaVideo = !!urlVideo(x.Video);
     return '<a class="kad" href="#" data-item="' + esc(kunci) + '" data-kategori="' + esc(x.Kategori || '') + '">' +
       '<div class="kad-gambar">' +
@@ -278,7 +288,7 @@
 
   function halamanUtama(d) {
     const t = d.Tetapan || {};
-    const gb = urlGambar(t.gambar_guru_besar);
+    const gb = saiz(urlGambar(t.gambar_guru_besar), 600);
     const misi = String(t.misi || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
     const pengumuman = (d.Pengumuman || []).slice(0, 5);
     const aktiviti = (d.Aktiviti || []).slice(0, 3);
@@ -357,7 +367,7 @@
       return (Number(a.Susunan) || 999) - (Number(b.Susunan) || 999);
     });
     const grid = s.map(function (o, i) {
-      const g = urlGambar(o.Gambar);
+      const g = saiz(urlGambar(o.Gambar), 440);
       return '<figure class="orang' + (i === 0 ? ' orang-utama' : '') + '">' +
         '<div class="orang-foto">' + (g ? '<img src="' + esc(g) + '" alt="' + esc(o.Nama) + '" loading="lazy">' : '<span>' + esc(inisial(o.Nama)) + '</span>') + '</div>' +
         '<figcaption><strong>' + esc(o.Nama) + '</strong><span>' + esc(o.Jawatan) + '</span></figcaption>' +
@@ -376,7 +386,7 @@
 
   function kadPautan(p) {
     const dom = domain(p.URL);
-    const logo = urlGambar(p.Logo) || ('https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(dom));
+    const logo = saiz(urlGambar(p.Logo), 128) || ('https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(dom));
     return '<a class="pautan-kad" href="' + esc(p.URL) + '" target="_blank" rel="noopener noreferrer">' +
       '<span class="pautan-logo"><img src="' + esc(logo) + '" alt="" loading="lazy"></span>' +
       '<span class="pautan-teks">' +
@@ -497,10 +507,10 @@
 
     let galeri = '';
     if (gambar.length) {
-      galeri = '<div class="galeri"><img class="galeri-utama" id="galeriUtama" src="' + esc(gambar[0]) + '" alt="">';
+      galeri = '<div class="galeri"><img class="galeri-utama" id="galeriUtama" src="' + esc(saiz(gambar[0], 1600)) + '" alt="">';
       if (gambar.length > 1) {
         galeri += '<div class="galeri-kecil">' + gambar.map(function (g, i) {
-          return '<button type="button" data-gambar="' + esc(g) + '"' + (i === 0 ? ' class="aktif"' : '') + ' aria-label="Gambar ' + (i + 1) + '"><img src="' + esc(g) + '" alt="" loading="lazy"></button>';
+          return '<button type="button" data-gambar="' + esc(saiz(g, 1600)) + '"' + (i === 0 ? ' class="aktif"' : '') + ' aria-label="Gambar ' + (i + 1) + '"><img src="' + esc(saiz(g, 200)) + '" alt="" loading="lazy"></button>';
         }).join('') + '</div>';
       }
       galeri += '</div>';
@@ -534,40 +544,58 @@
 
   /* ================= MULA ================= */
 
+  function paparSemua(d, kemaskiniLatar) {
+    const t = d.Tetapan || {};
+    const info = INFO_HALAMAN[HALAMAN];
+    isiKepala(t);
+    isiKaki(t);
+    isiTicker(d.Pengumuman || []);
+
+    // Jangan ganggu pelawat yang sedang membaca modal atau mengisi borang
+    const modal = document.getElementById('modal');
+    if (kemaskiniLatar && ((modal && !modal.hidden) || HALAMAN === 'aduan')) return;
+
+    const main = document.getElementById('kandungan');
+    if (HALAMAN === 'utama') main.innerHTML = halamanUtama(d);
+    else if (HALAMAN === 'pentadbiran') main.innerHTML = halamanPentadbiran(d, info);
+    else if (HALAMAN === 'aduan') main.innerHTML = halamanAduan(info);
+    else if (HALAMAN === 'pautan') main.innerHTML = halamanPautan(d, info);
+    else main.innerHTML = halamanKandungan(d, info);
+
+    const banner = saiz(urlGambar(t.banner), 1920);
+    const hero = document.getElementById('hero');
+    if (banner && hero) {
+      hero.classList.add('ada-banner');
+      hero.style.setProperty('--banner', 'url("' + banner.replace(/"/g, '%22') + '")');
+    }
+    pasangPenapis();
+    pasangBorangAduan();
+  }
+
   async function mula() {
     binaRangka();
-    const main = document.getElementById('kandungan');
-    const info = INFO_HALAMAN[HALAMAN];
+    const simpanan = bacaSimpanan();
 
+    // Ada data tersimpan: papar serta-merta, kemudian semak data terkini di latar belakang
+    if (simpanan) {
+      paparSemua(simpanan.data, false);
+      if (Date.now() - simpanan.masa < (CONFIG.CACHE_MINIT || 1) * 60000) return;
+      try {
+        const d = await ambilTerkini();
+        if (JSON.stringify(d) !== JSON.stringify(simpanan.data)) paparSemua(d, true);
+      } catch (e) { /* kekal dengan data tersimpan */ }
+      return;
+    }
+
+    // Lawatan pertama: tunggu data dari pelayan
     try {
-      const d = await ambilData();
-      const t = d.Tetapan || {};
-      isiKepala(t);
-      isiKaki(t);
-      isiTicker(d.Pengumuman || []);
-
-      if (HALAMAN === 'utama') main.innerHTML = halamanUtama(d);
-      else if (HALAMAN === 'pentadbiran') main.innerHTML = halamanPentadbiran(d, info);
-      else if (HALAMAN === 'aduan') main.innerHTML = halamanAduan(info);
-      else if (HALAMAN === 'pautan') main.innerHTML = halamanPautan(d, info);
-      else main.innerHTML = halamanKandungan(d, info);
-
-      // Gambar banner pada hero
-      const banner = urlGambar(t.banner);
-      const hero = document.getElementById('hero');
-      if (banner && hero) {
-        hero.classList.add('ada-banner');
-        hero.style.setProperty('--banner', 'url("' + banner.replace(/"/g, '%22') + '")');
-      }
-
-      pasangPenapis();
-      pasangBorangAduan();
+      paparSemua(await ambilTerkini(), false);
     } catch (err) {
       console.error(err);
+      const main = document.getElementById('kandungan');
       document.getElementById('namaSekolah').textContent = 'Laman Web Sekolah';
       if (HALAMAN === 'aduan') {
-        // Borang aduan tetap dipaparkan walaupun data lain gagal dimuatkan
-        main.innerHTML = halamanAduan(info);
+        main.innerHTML = halamanAduan(INFO_HALAMAN.aduan);
         pasangBorangAduan();
         return;
       }
@@ -577,10 +605,7 @@
           '<p>Semak sambungan internet anda, kemudian cuba lagi.</p>' +
           '<button class="butang butang-emas" id="cubaLagi">Cuba lagi</button>' +
         '</div>';
-      document.getElementById('cubaLagi').addEventListener('click', function () {
-        try { sessionStorage.removeItem('dataSekolah'); } catch (e) { /* abaikan */ }
-        location.reload();
-      });
+      document.getElementById('cubaLagi').addEventListener('click', function () { location.reload(); });
     }
   }
 

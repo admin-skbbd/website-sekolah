@@ -149,6 +149,10 @@
     }
     return /^https:\/\//.test(u) ? u : '';
   }
+  function saiz(u, w) {
+    if (!u) return '';
+    return /^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]+$/.test(u) ? u + '=w' + w : u;
+  }
   function formatTarikh(t) {
     if (!t) return '';
     const d = new Date(String(t).slice(0, 10) + 'T00:00:00');
@@ -216,7 +220,7 @@
   // Selepas simpan, buang data lama supaya website awam memaparkan maklumat terkini
   function batalCache(tab) {
     delete CACHE[tab];
-    try { sessionStorage.removeItem('dataSekolah'); } catch (e) { /* abaikan */ }
+    try { localStorage.removeItem('dataSekolah_v2'); } catch (e) { /* abaikan */ }
   }
 
   function tamatSesi() {
@@ -227,7 +231,7 @@
 
   async function ambilNamaSekolah() {
     try {
-      const c = JSON.parse(sessionStorage.getItem('dataSekolah') || 'null');
+      const c = JSON.parse(localStorage.getItem('dataSekolah_v2') || 'null');
       if (c && c.data && c.data.Tetapan) {
         namaSekolah = c.data.Tetapan.nama_sekolah || '';
         logoSekolah = c.data.Tetapan.logo || '';
@@ -459,7 +463,7 @@
       function senarai() { return simpanan.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean); }
       function lukis() {
         pratonton.innerHTML = senarai().map(function (u, i) {
-          return '<div class="gambar-kecil"><img src="' + esc(urlGambar(u)) + '" alt="Gambar ' + (i + 1) + '">' +
+          return '<div class="gambar-kecil"><img src="' + esc(saiz(urlGambar(u), 240)) + '" alt="Gambar ' + (i + 1) + '">' +
             '<button type="button" class="buang" data-buang="' + i + '" aria-label="Buang gambar ' + (i + 1) + '">×</button></div>';
         }).join('');
       }
@@ -606,7 +610,7 @@
   function barisRekod(k, x) {
     let dom = '';
     try { dom = x.URL ? new URL(x.URL).hostname.replace(/^www\./, '') : ''; } catch (e) { /* abaikan */ }
-    const g = urlGambar(String(x.Gambar || x.Logo || '').split(',')[0]) ||
+    const g = saiz(urlGambar(String(x.Gambar || x.Logo || '').split(',')[0]), 160) ||
       (dom ? 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(dom) : '');
     const meta = [];
     if (dom) meta.push('<span>' + esc(dom) + '</span>');
