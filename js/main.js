@@ -18,6 +18,7 @@
     { id: 'hem',         label: 'HEM',         href: 'hem.html' },
     { id: 'kokurikulum', label: 'Kokurikulum', href: 'kokurikulum.html' },
     { id: 'aktiviti',    label: 'Aktiviti',    href: 'aktiviti.html' },
+    { id: 'pautan',      label: 'Pautan',      href: 'pautan.html' },
     { id: 'aduan',       label: 'Aduan',       href: 'aduan.html' }
   ];
 
@@ -27,6 +28,7 @@
     hem:         { tajuk: 'Hal Ehwal Murid', tab: 'HEM', ket: 'Disiplin, kebajikan, kesihatan dan bimbingan murid.' },
     kokurikulum: { tajuk: 'Kokurikulum', tab: 'Kokurikulum', ket: 'Kelab, persatuan, unit beruniform dan sukan.' },
     aktiviti:    { tajuk: 'Aktiviti Sekolah', tab: 'Aktiviti', ket: 'Program dan majlis yang telah dijalankan di sekolah.' },
+    pautan:      { tajuk: 'Pautan', tab: 'Pautan', ket: 'Pautan pantas ke laman web rasmi kerajaan dan sistem pendidikan.' },
     aduan:       { tajuk: 'Aduan & Maklum Balas', ket: 'Sampaikan aduan atau cadangan anda kepada pihak sekolah.' }
   };
 
@@ -368,6 +370,49 @@
       '</div></section>';
   }
 
+  function domain(u) {
+    try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; }
+  }
+
+  function kadPautan(p) {
+    const dom = domain(p.URL);
+    const logo = urlGambar(p.Logo) || ('https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(dom));
+    return '<a class="pautan-kad" href="' + esc(p.URL) + '" target="_blank" rel="noopener noreferrer">' +
+      '<span class="pautan-logo"><img src="' + esc(logo) + '" alt="" loading="lazy"></span>' +
+      '<span class="pautan-teks">' +
+        '<strong>' + esc(p.Nama) + '</strong>' +
+        (p.Keterangan ? '<span class="pautan-ket">' + esc(p.Keterangan) + '</span>' : '') +
+        '<span class="pautan-domain">' + esc(dom) + '</span>' +
+      '</span>' +
+      '<span class="sr-only"> (dibuka di tab baharu)</span>' +
+    '</a>';
+  }
+
+  function halamanPautan(d, info) {
+    const s = (d.Pautan || [])
+      .filter(function (p) { return /^https?:\/\//.test(p.URL || ''); })
+      .sort(function (a, b) { return (Number(a.Susunan) || 999) - (Number(b.Susunan) || 999); });
+    if (!s.length) {
+      return pita(info) + '<section class="seksyen"><div class="bekas">' + kosong('Senarai pautan belum dikemaskini.') + '</div></section>';
+    }
+    // Kumpulkan ikut kategori
+    const kumpulan = {};
+    const urutan = [];
+    s.forEach(function (p) {
+      const k = p.Kategori || 'Pautan lain';
+      if (!kumpulan[k]) { kumpulan[k] = []; urutan.push(k); }
+      kumpulan[k].push(p);
+    });
+    return pita(info) + '<section class="seksyen"><div class="bekas">' +
+      urutan.map(function (k) {
+        return '<div class="kumpulan-pautan">' +
+          (urutan.length > 1 ? '<div class="tajuk-seksyen"><h2>' + esc(k) + '</h2></div>' : '') +
+          '<div class="grid-pautan">' + kumpulan[k].map(kadPautan).join('') + '</div>' +
+        '</div>';
+      }).join('') +
+    '</div></section>';
+  }
+
   function halamanAduan(info) {
     return pita(info) +
       '<section class="seksyen"><div class="bekas bekas-sempit">' +
@@ -504,6 +549,7 @@
       if (HALAMAN === 'utama') main.innerHTML = halamanUtama(d);
       else if (HALAMAN === 'pentadbiran') main.innerHTML = halamanPentadbiran(d, info);
       else if (HALAMAN === 'aduan') main.innerHTML = halamanAduan(info);
+      else if (HALAMAN === 'pautan') main.innerHTML = halamanPautan(d, info);
       else main.innerHTML = halamanKandungan(d, info);
 
       // Gambar banner pada hero

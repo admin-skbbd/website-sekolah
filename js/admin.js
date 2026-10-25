@@ -58,7 +58,20 @@
     kokurikulum: { tab: 'Kokurikulum', namaItem: 'maklumat', lajurTajuk: 'Tajuk',
       medan: medanKandungan(['Kelab dan persatuan', 'Unit beruniform', 'Sukan dan permainan', 'Pertandingan', 'Makluman']) },
     aktiviti: { tab: 'Aktiviti', namaItem: 'aktiviti', lajurTajuk: 'Tajuk',
-      medan: medanKandungan(['Majlis rasmi', 'Sambutan', 'Sukan', 'Akademik', 'Lawatan', 'Program komuniti']) }
+      medan: medanKandungan(['Majlis rasmi', 'Sambutan', 'Sukan', 'Akademik', 'Lawatan', 'Program komuniti']) },
+    pautan: {
+      tab: 'Pautan', namaItem: 'pautan', lajurTajuk: 'Nama', susun: true,
+      medan: [
+        { n: 'Nama', l: 'Nama laman', wajib: true },
+        { n: 'URL', l: 'Alamat laman web', jenis: 'url', wajib: true, bantu: 'Contoh: https://www.moe.gov.my' },
+        { n: 'Kategori', l: 'Kategori', jenis: 'kategori', pilihan: ['Kementerian dan jabatan', 'Sistem pendidikan', 'Portal kerajaan', 'Pautan lain'],
+          bantu: 'Pautan dikumpulkan mengikut kategori di website.' },
+        { n: 'Keterangan', l: 'Keterangan ringkas (pilihan)', jenis: 'textarea', baris: 2 },
+        { n: 'Susunan', l: 'Susunan paparan', jenis: 'number', bantu: 'Nombor kecil dipaparkan dahulu.' },
+        { n: 'Logo', l: 'Logo (pilihan)', jenis: 'gambar', satu: true, png: true,
+          bantu: 'Jika dibiarkan kosong, ikon laman web akan digunakan secara automatik.' }
+      ]
+    }
   };
 
   const MEDAN_TETAPAN = [
@@ -94,6 +107,7 @@
     { id: 'hem', label: 'HEM' },
     { id: 'kokurikulum', label: 'Kokurikulum' },
     { id: 'aktiviti', label: 'Aktiviti sekolah' },
+    { id: 'pautan', label: 'Pautan' },
     { id: 'aduan', label: 'Aduan' },
     { pemisah: true },
     { id: 'kataLaluan', label: 'Tukar kata laluan' }
@@ -106,6 +120,7 @@
     hem: ['Hal Ehwal Murid', 'Maklumat disiplin, kebajikan, kesihatan dan bimbingan murid.'],
     kokurikulum: ['Kokurikulum', 'Maklumat kelab, persatuan, unit beruniform dan sukan.'],
     aktiviti: ['Aktiviti sekolah', 'Kongsi gambar dan video program sekolah.'],
+    pautan: ['Pautan', 'Pautan ke laman web rasmi kerajaan dan sistem pendidikan.'],
     aduan: ['Aduan', 'Aduan dan maklum balas yang dihantar oleh orang awam.'],
     kataLaluan: ['Tukar kata laluan', 'Kata laluan ini dikongsi oleh semua guru. Maklumkan kepada guru lain selepas menukarnya.']
   };
@@ -503,7 +518,11 @@
     const o = {};
     medan.forEach(function (m) {
       const el = f.elements[m.n];
-      if (el) o[m.n] = String(el.value).trim();
+      if (!el) return;
+      let v = String(el.value).trim();
+      // Tambah https:// secara automatik jika guru terlupa
+      if (m.jenis === 'url' && v && !/^https?:\/\//i.test(v)) v = 'https://' + v;
+      o[m.n] = v;
     });
     return o;
   }
@@ -585,8 +604,12 @@
   /* ================= MODUL REKOD (senarai + borang) ================= */
 
   function barisRekod(k, x) {
-    const g = urlGambar(String(x.Gambar || '').split(',')[0]);
+    let dom = '';
+    try { dom = x.URL ? new URL(x.URL).hostname.replace(/^www\./, '') : ''; } catch (e) { /* abaikan */ }
+    const g = urlGambar(String(x.Gambar || x.Logo || '').split(',')[0]) ||
+      (dom ? 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(dom) : '');
     const meta = [];
+    if (dom) meta.push('<span>' + esc(dom) + '</span>');
     if (x.Status === 'Draf') meta.push('<span class="status status-draf">Draf</span>');
     if (x.Jawatan) meta.push('<span>' + esc(x.Jawatan) + '</span>');
     if (x.Kategori) meta.push('<span>' + esc(x.Kategori) + '</span>');
