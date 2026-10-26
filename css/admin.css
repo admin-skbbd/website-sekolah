@@ -156,6 +156,13 @@
 .nota-ai { max-width: 820px; margin-top: 1.5rem; padding: 1rem 1.25rem; border-left: 4px solid var(--emas); border-radius: 6px; background: #fff; color: var(--kelabu); font-size: .9rem; }
 .nota-ai p:last-child { margin-bottom: 0; }
 
+/* ---------------- Submenu ---------------- */
+.kumpulan-jenis[hidden] { display: none; }
+textarea[name="KodEmbed"] { font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: .85rem; line-height: 1.5; }
+.bantu-semak { display: block; margin: -.6rem 0 1rem; }
+.pratonton-benam { margin-bottom: 1rem; }
+.benam { display: block; width: 100%; border: 1px solid var(--garis); border-radius: var(--jejari); background: #fff; }
+
 /* ---------------- Notifikasi ---------------- */
 .toast {
   position: fixed; left: 50%; bottom: 1.5rem; z-index: 300;

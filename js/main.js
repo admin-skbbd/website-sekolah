@@ -137,9 +137,6 @@
   /* ================= RANGKA HALAMAN ================= */
 
   function binaRangka() {
-    const nav = MENU.map(function (m) {
-      return '<li><a href="' + m.href + '"' + (m.id === HALAMAN ? ' aria-current="page"' : '') + '>' + m.label + '</a></li>';
-    }).join('');
 
     document.body.innerHTML =
       '<a class="langkau" href="#kandungan">Langkau ke kandungan</a>' +
@@ -150,7 +147,7 @@
             '<span class="jenama-teks"><strong id="namaSekolah">Memuatkan…</strong><small id="motoSekolah"></small></span>' +
           '</a>' +
           '<button class="butang-menu" id="butangMenu" aria-expanded="false" aria-controls="nav"><span aria-hidden="true">☰</span> Menu</button>' +
-          '<nav class="nav" id="nav" aria-label="Menu utama"><ul>' + nav + '<li class="nav-admin"><a href="admin.html">Log masuk guru</a></li></ul></nav>' +
+          '<nav class="nav" id="nav" aria-label="Menu utama"><ul id="navSenarai">' + navHTML([]) + '</ul></nav>' +
         '</div>' +
       '</header>' +
       '<div class="ticker" id="ticker" hidden></div>' +
@@ -174,6 +171,18 @@
       document.getElementById('nav').classList.toggle('buka', !buka);
     });
 
+    // Buka / tutup submenu (sentuhan & papan kekunci)
+    document.getElementById('nav').addEventListener('click', function (e) {
+      const t = e.target.closest('.togol-sub');
+      if (!t) return;
+      const li = t.parentElement;
+      const buka = !li.classList.contains('buka');
+      tutupSub(li);
+      li.classList.toggle('buka', buka);
+      t.setAttribute('aria-expanded', String(buka));
+    });
+    document.addEventListener('click', function (e) { if (!e.target.closest('.ada-sub')) tutupSub(); });
+
     // Klik pada kad / pengumuman untuk buka modal
     document.addEventListener('click', function (e) {
       const el = e.target.closest('[data-item]');
@@ -189,7 +198,89 @@
         document.querySelectorAll('.galeri-kecil button').forEach(function (b) { b.classList.toggle('aktif', b === g); });
       }
     });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') tutupModal(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { tutupModal(); tutupSub(); } });
+  }
+
+  /* ---------- Submenu ---------- */
+  let INDUK_AKTIF = HALAMAN; // menu induk yang diserlahkan
+
+  function subUntuk(submenu, id) {
+    return (submenu || []).filter(function (s) { return s.Menu === id; })
+      .sort(function (a, b) { return (Number(a.Susunan) || 999) - (Number(b.Susunan) || 999); });
+  }
+  function hrefSub(s) { return s.Jenis === 'pautan' ? s.Pautan : 'halaman.html?id=' + encodeURIComponent(s.ID); }
+  function atrSub(s) { return s.Jenis === 'pautan' ? ' target="_blank" rel="noopener noreferrer"' : ''; }
+
+  function navHTML(submenu) {
+    return MENU.map(function (m) {
+      const sub = subUntuk(submenu, m.id);
+      const semasa = m.id === INDUK_AKTIF ? (HALAMAN === 'halaman' ? ' aria-current="true"' : ' aria-current="page"') : '';
+      if (!sub.length) return '<li><a href="' + m.href + '"' + semasa + '>' + m.label + '</a></li>';
+      return '<li class="ada-sub"><a href="' + m.href + '"' + semasa + '>' + m.label + '</a>' +
+        '<button type="button" class="togol-sub" aria-expanded="false" aria-label="Submenu ' + esc(m.label) + '"><span aria-hidden="true">▾</span></button>' +
+        '<ul class="submenu">' + sub.map(function (s) {
+          return '<li><a href="' + esc(hrefSub(s)) + '"' + atrSub(s) + '>' + esc(s.Tajuk) + '</a></li>';
+        }).join('') + '</ul></li>';
+    }).join('') + '<li class="nav-admin"><a href="admin.html">Log masuk guru</a></li>';
+  }
+
+  function tutupSub(kecuali) {
+    document.querySelectorAll('.nav .ada-sub.buka').forEach(function (li) {
+      if (li === kecuali) return;
+      li.classList.remove('buka');
+      li.querySelector('.togol-sub').setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function subPitaHTML(submenu, indukId, idSemasa) {
+    const sub = subUntuk(submenu, indukId);
+    const m = MENU.filter(function (x) { return x.id === indukId; })[0];
+    if (!sub.length || !m) return '';
+    return '<nav class="sub-pita" aria-label="Submenu ' + esc(m.label) + '"><div class="bekas sub-pita-dalam">' +
+      '<a href="' + m.href + '"' + (HALAMAN !== 'halaman' ? ' aria-current="page"' : '') + '>' + esc(m.label) + '</a>' +
+      sub.map(function (s) {
+        return '<a href="' + esc(hrefSub(s)) + '"' + atrSub(s) + (s.ID === idSemasa ? ' aria-current="page"' : '') + '>' + esc(s.Tajuk) + '</a>';
+      }).join('') +
+    '</div></nav>';
+  }
+
+  // Benamkan kod HTML atau pautan dalam iframe yang selamat
+  const SKRIP_TINGGI = '<script>(function(){function h(){try{var b=document.body;if(!b)return;var c=getComputedStyle(b);parent.postMessage({tinggiBenam:Math.ceil(b.offsetHeight+parseFloat(c.marginTop)+parseFloat(c.marginBottom))},"*")}catch(e){}}addEventListener("load",h);if(window.ResizeObserver){new ResizeObserver(h).observe(document.documentElement)}setInterval(h,1500);h()})();<\/script>';
+
+  function binaBenam(bekas, o) {
+    let url = o.url || '';
+    let kod = o.kod || '';
+    let tinggi = Number(o.tinggi) || 0;
+    const iframeSahaja = kod.match(/^\s*<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*<\/iframe>\s*$/i);
+    if (iframeSahaja) {
+      url = iframeSahaja[1].replace(/&amp;/g, '&');
+      const h = kod.match(/\bheight=["']?(\d+)/i);
+      if (!tinggi && h) tinggi = Number(h[1]);
+      kod = '';
+    }
+    const f = document.createElement('iframe');
+    f.className = 'benam';
+    f.title = o.tajuk || 'Kandungan dibenamkan';
+    f.setAttribute('allow', 'fullscreen; clipboard-write');
+    f.setAttribute('allowfullscreen', '');
+    if (url) {
+      if (!/^https:\/\//.test(url)) { bekas.innerHTML = kosong('Pautan benam tidak sah. Pautan mesti bermula dengan https://'); return; }
+      f.src = url;
+      f.style.height = (tinggi || 800) + 'px';
+    } else {
+      f.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads' + (o.aksesPenuh ? ' allow-same-origin' : ''));
+      f.style.height = (tinggi || 600) + 'px';
+      f.srcdoc = kod + (tinggi ? '' : SKRIP_TINGGI);
+      if (!tinggi) {
+        window.addEventListener('message', function (e) {
+          if (e.source === f.contentWindow && e.data && typeof e.data.tinggiBenam === 'number') {
+            f.style.height = Math.min(Math.max(e.data.tinggiBenam + 4, 150), 20000) + 'px';
+          }
+        });
+      }
+    }
+    bekas.innerHTML = '';
+    bekas.appendChild(f);
   }
 
   function isiKepala(t) {
@@ -423,6 +514,49 @@
     '</div></section>';
   }
 
+  function halamanSubmenu(s) {
+    if (!s) {
+      return '<section class="pita"><div class="bekas"><h1>Halaman tidak ditemui</h1></div></section>' +
+        '<section class="seksyen"><div class="bekas">' + kosong('Halaman ini mungkin telah dipadam atau disembunyikan.') + '</div></section>';
+    }
+    const induk = MENU.filter(function (m) { return m.id === s.Menu; })[0];
+    let isi;
+    if (s.Jenis === 'embed') {
+      isi = '<div id="benamBekas"><div class="memuat-kecil" role="status"><span class="pusing"></span>Memuatkan kandungan…</div></div>';
+    } else if (s.Jenis === 'pautan') {
+      isi = '<div class="kosong"><p>Kandungan ini terdapat di laman lain.</p><p><a class="butang butang-emas" href="' + esc(s.Pautan) + '" target="_blank" rel="noopener noreferrer">Buka ' + esc(s.Tajuk) + '</a></p></div>';
+    } else {
+      const gambar = senaraiGambar(s.Gambar);
+      isi = (s.Kandungan || gambar.length)
+        ? '<article class="artikel">' + perenggan(s.Kandungan) +
+            (gambar.length ? '<div class="grid-gambar">' + gambar.map(function (g) {
+              return '<a href="' + esc(saiz(g, 1600)) + '" target="_blank" rel="noopener"><img src="' + esc(saiz(g, 800)) + '" alt="" loading="lazy"></a>';
+            }).join('') + '</div>' : '') +
+          '</article>'
+        : kosong('Kandungan halaman ini belum ditambah.');
+    }
+    return '<section class="pita"><div class="bekas">' +
+        (induk ? '<p class="serbuk"><a href="' + induk.href + '">' + esc(induk.label) + '</a> <span aria-hidden="true">›</span></p>' : '') +
+        '<h1>' + esc(s.Tajuk) + '</h1>' +
+      '</div></section>' +
+      '<section class="seksyen"><div class="bekas">' + isi + '</div></section>';
+  }
+
+  async function muatBenam(s) {
+    const bekas = document.getElementById('benamBekas');
+    if (!bekas) return;
+    if (s.Pautan) { binaBenam(bekas, { url: s.Pautan, tinggi: s.Tinggi, tajuk: s.Tajuk }); return; }
+    try {
+      const r = await fetch(API + '?action=embed&id=' + encodeURIComponent(s.ID));
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.mesej);
+      if (!j.data.html) { bekas.innerHTML = kosong('Kandungan halaman ini belum ditambah.'); return; }
+      binaBenam(bekas, { kod: j.data.html, tinggi: s.Tinggi, aksesPenuh: s.AksesPenuh === 'Ya', tajuk: s.Tajuk });
+    } catch (e) {
+      bekas.innerHTML = kosong('Kandungan tidak dapat dimuatkan. Sila muat semula halaman.');
+    }
+  }
+
   function halamanAduan(info) {
     return pita(info) +
       '<section class="seksyen"><div class="bekas bekas-sempit">' +
@@ -548,20 +682,34 @@
   function paparSemua(d, kemaskiniLatar) {
     const t = d.Tetapan || {};
     const info = INFO_HALAMAN[HALAMAN];
+    let sub = null;
+    if (HALAMAN === 'halaman') {
+      const id = new URLSearchParams(location.search).get('id');
+      sub = (d.Submenu || []).filter(function (x) { return x.ID === id; })[0] || null;
+      INDUK_AKTIF = sub ? sub.Menu : '';
+    }
+    document.getElementById('navSenarai').innerHTML = navHTML(d.Submenu);
     isiKepala(t);
+    if (sub) document.title = sub.Tajuk + ' | ' + (t.nama_sekolah || 'Laman Web Sekolah');
     isiKaki(t);
     isiTicker(d.Pengumuman || []);
 
     // Jangan ganggu pelawat yang sedang membaca modal atau mengisi borang
     const modal = document.getElementById('modal');
-    if (kemaskiniLatar && ((modal && !modal.hidden) || HALAMAN === 'aduan')) return;
+    if (kemaskiniLatar && ((modal && !modal.hidden) || HALAMAN === 'aduan' || HALAMAN === 'halaman')) return;
 
     const main = document.getElementById('kandungan');
     if (HALAMAN === 'utama') main.innerHTML = halamanUtama(d);
     else if (HALAMAN === 'pentadbiran') main.innerHTML = halamanPentadbiran(d, info);
     else if (HALAMAN === 'aduan') main.innerHTML = halamanAduan(info);
     else if (HALAMAN === 'pautan') main.innerHTML = halamanPautan(d, info);
+    else if (HALAMAN === 'halaman') main.innerHTML = halamanSubmenu(sub);
     else main.innerHTML = halamanKandungan(d, info);
+
+    // Jalur submenu di bawah tajuk halaman
+    const pitaEl = main.querySelector('.pita');
+    if (pitaEl && INDUK_AKTIF) pitaEl.insertAdjacentHTML('afterend', subPitaHTML(d.Submenu, INDUK_AKTIF, sub ? sub.ID : ''));
+    if (sub && sub.Jenis === 'embed') muatBenam(sub);
 
     const banner = saiz(urlGambar(t.banner), 1920);
     const hero = document.getElementById('hero');

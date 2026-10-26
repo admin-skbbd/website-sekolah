@@ -30,6 +30,21 @@
     ];
   }
 
+  const MENU_AWAM = [
+    { v: 'utama', l: 'Utama' }, { v: 'pentadbiran', l: 'Pentadbiran' }, { v: 'kurikulum', l: 'Kurikulum' },
+    { v: 'hem', l: 'HEM' }, { v: 'kokurikulum', l: 'Kokurikulum' }, { v: 'aktiviti', l: 'Aktiviti' },
+    { v: 'pautan', l: 'Pautan' }, { v: 'aduan', l: 'Aduan' }
+  ];
+  const JENIS_SUBMENU = [
+    { v: 'teks', l: 'Halaman teks dan gambar' },
+    { v: 'embed', l: 'Benam kod HTML atau pautan (embed)' },
+    { v: 'pautan', l: 'Pautan ke laman lain' }
+  ];
+  function labelDari(senarai, v) {
+    const x = senarai.filter(function (p) { return p.v === v; })[0];
+    return x ? x.l : v;
+  }
+
   const KONFIG = {
     pengumuman: {
       tab: 'Pengumuman', namaItem: 'pengumuman', lajurTajuk: 'Tajuk',
@@ -60,6 +75,16 @@
       medan: medanKandungan(['Kelab dan persatuan', 'Unit beruniform', 'Sukan dan permainan', 'Pertandingan', 'Makluman']) },
     aktiviti: { tab: 'Aktiviti', namaItem: 'aktiviti', lajurTajuk: 'Tajuk',
       medan: medanKandungan(['Majlis rasmi', 'Sambutan', 'Sukan', 'Akademik', 'Lawatan', 'Program komuniti']) },
+    submenu: {
+      tab: 'Submenu', namaItem: 'submenu', lajurTajuk: 'Tajuk', susun: true,
+      borang: function (b, k, i) { lukisBorangSubmenu(b, k, i); },
+      urut: function (a, b) {
+        const ia = MENU_AWAM.map(function (m) { return m.v; }).indexOf(a.Menu);
+        const ib = MENU_AWAM.map(function (m) { return m.v; }).indexOf(b.Menu);
+        return (ia - ib) || ((Number(a.Susunan) || 999) - (Number(b.Susunan) || 999));
+      },
+      medan: []
+    },
     pautan: {
       tab: 'Pautan', namaItem: 'pautan', lajurTajuk: 'Nama', susun: true,
       medan: [
@@ -109,6 +134,7 @@
     { id: 'kokurikulum', label: 'Kokurikulum' },
     { id: 'aktiviti', label: 'Aktiviti sekolah' },
     { id: 'pautan', label: 'Pautan' },
+    { id: 'submenu', label: 'Submenu & halaman' },
     { id: 'aduan', label: 'Aduan' },
     { id: 'ai', label: 'Pembantu AI' },
     { pemisah: true },
@@ -123,6 +149,7 @@
     kokurikulum: ['Kokurikulum', 'Maklumat kelab, persatuan, unit beruniform dan sukan.'],
     aktiviti: ['Aktiviti sekolah', 'Kongsi gambar dan video program sekolah.'],
     pautan: ['Pautan', 'Pautan ke laman web rasmi kerajaan dan sistem pendidikan.'],
+    submenu: ['Submenu & halaman', 'Tambah submenu di bawah mana-mana menu utama: halaman teks, sistem yang dibenamkan (embed HTML) atau pautan ke laman lain.'],
     aduan: ['Aduan', 'Aduan dan maklum balas yang dihantar oleh orang awam.'],
     ai: ['Pembantu AI', 'AI mencari berita penting setiap hari dan mencadangkannya sebagai draf pengumuman.'],
     kataLaluan: ['Tukar kata laluan', 'Kata laluan ini dikongsi oleh semua guru. Maklumkan kepada guru lain selepas menukarnya.']
@@ -378,7 +405,7 @@
 
   function nilaiAsal(m) {
     if (m.jenis === 'date') return hariIni();
-    if (m.jenis === 'select') return m.pilihan[0];
+    if (m.jenis === 'select') return typeof m.pilihan[0] === 'object' ? m.pilihan[0].v : m.pilihan[0];
     return '';
   }
 
@@ -398,7 +425,9 @@
       kawalan = '<textarea' + atr + ' rows="' + (m.baris || 6) + '">' + esc(v) + '</textarea>';
     } else if (m.jenis === 'select') {
       kawalan = '<select' + atr + '>' + m.pilihan.map(function (p) {
-        return '<option' + (p === v ? ' selected' : '') + '>' + esc(p) + '</option>';
+        const nilai = typeof p === 'object' ? p.v : p;
+        const label = typeof p === 'object' ? p.l : p;
+        return '<option value="' + esc(nilai) + '"' + (nilai === v ? ' selected' : '') + '>' + esc(label) + '</option>';
       }).join('') + '</select>';
     } else if (m.jenis === 'kategori') {
       kawalan = '<input type="text"' + atr + ' value="' + esc(v) + '" list="' + id + '_dl" autocomplete="off">' +
@@ -620,12 +649,17 @@
       (dom ? 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(dom) : '');
     const meta = [];
     if (dom) meta.push('<span>' + esc(dom) + '</span>');
+    if (k.tab === 'Submenu') {
+      meta.push('<span><strong>' + esc(labelDari(MENU_AWAM, x.Menu)) + '</strong></span>');
+      meta.push('<span>' + esc(labelDari(JENIS_SUBMENU, x.Jenis)) + '</span>');
+      if (/^sembunyi/i.test(x.Status || '')) meta.push('<span class="status status-draf">Tersembunyi</span>');
+    }
     if (x.Oleh === 'AI') meta.push('<span class="status status-ai">Cadangan AI</span>');
     if (x.Status === 'Draf') meta.push('<span class="status status-draf">Draf</span>');
     if (x.Jawatan) meta.push('<span>' + esc(x.Jawatan) + '</span>');
     if (x.Kategori) meta.push('<span>' + esc(x.Kategori) + '</span>');
     if (x.Tarikh) meta.push('<span>' + formatTarikh(x.Tarikh) + '</span>');
-    if (k.susun && x.Susunan) meta.push('<span>Susunan ' + esc(x.Susunan) + '</span>');
+    if (k.susun && x.Susunan && k.tab !== 'Submenu') meta.push('<span>Susunan ' + esc(x.Susunan) + '</span>');
     if (x.Video) meta.push('<span>Ada video</span>');
 
     return '<div class="rekod">' +
@@ -647,14 +681,16 @@
         '<button type="button" class="butang butang-emas" data-tambah>Tambah ' + esc(k.namaItem) + '</button>' +
       '</div>' +
       '<div class="senarai-bekas">' + memuatKecil() + '</div>';
-    bekas.querySelector('[data-tambah]').addEventListener('click', function () { lukisBorangRekod(bekas, kunci, null); });
+    const borang = k.borang || lukisBorangRekod;
+    bekas.querySelector('[data-tambah]').addEventListener('click', function () { borang(bekas, kunci, null); });
 
     const sb = bekas.querySelector('.senarai-bekas');
     let data;
     try { data = await muatTab(k.tab); }
     catch (e) { sb.innerHTML = ralatMuat(e.message); return; }
     if (k.tab === 'Pengumuman') kemaskiniLencanaAI(data);
-    if (k.susun) data = data.slice().sort(function (a, b) { return (Number(a.Susunan) || 999) - (Number(b.Susunan) || 999); });
+    if (k.urut) data = data.slice().sort(k.urut);
+    else if (k.susun) data = data.slice().sort(function (a, b) { return (Number(a.Susunan) || 999) - (Number(b.Susunan) || 999); });
 
     function lukis(q) {
       q = (q || '').toLowerCase();
@@ -684,7 +720,7 @@
           tb.textContent = 'Terbit';
         }
       } else if (ed) {
-        lukisBorangRekod(bekas, kunci, data.find(function (x) { return x.ID === ed.dataset.edit; }));
+        borang(bekas, kunci, data.find(function (x) { return x.ID === ed.dataset.edit; }));
       } else if (pd) {
         const item = data.find(function (x) { return x.ID === pd.dataset.padam; });
         if (!confirm('Padam "' + item[k.lajurTajuk] + '"?\nTindakan ini tidak boleh dibatalkan.')) return;
@@ -740,6 +776,164 @@
     window.scrollTo(0, 0);
     const pertama = f.querySelector('input:not([type="hidden"]), textarea');
     if (pertama) pertama.focus();
+  }
+
+
+  /* ================= SUBMENU & EMBED ================= */
+
+  const SKRIP_TINGGI = '<script>(function(){function h(){try{var b=document.body;if(!b)return;var c=getComputedStyle(b);parent.postMessage({tinggiBenam:Math.ceil(b.offsetHeight+parseFloat(c.marginTop)+parseFloat(c.marginBottom))},"*")}catch(e){}}addEventListener("load",h);if(window.ResizeObserver){new ResizeObserver(h).observe(document.documentElement)}setInterval(h,1500);h()})();<\/script>';
+
+  function binaBenam(bekas, o) {
+    let url = o.url || '';
+    let kod = o.kod || '';
+    let tinggi = Number(o.tinggi) || 0;
+    const iframeSahaja = kod.match(/^\s*<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*<\/iframe>\s*$/i);
+    if (iframeSahaja) {
+      url = iframeSahaja[1].replace(/&amp;/g, '&');
+      const h = kod.match(/\bheight=["']?(\d+)/i);
+      if (!tinggi && h) tinggi = Number(h[1]);
+      kod = '';
+    }
+    const f = document.createElement('iframe');
+    f.className = 'benam';
+    f.title = 'Pratonton';
+    f.setAttribute('allowfullscreen', '');
+    if (url) {
+      if (!/^https:\/\//.test(url)) { bekas.innerHTML = ralatMuat('Pautan mesti bermula dengan https://'); return; }
+      f.src = url;
+      f.style.height = (tinggi || 800) + 'px';
+    } else {
+      f.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads' + (o.aksesPenuh ? ' allow-same-origin' : ''));
+      f.style.height = (tinggi || 600) + 'px';
+      f.srcdoc = kod + (tinggi ? '' : SKRIP_TINGGI);
+      if (!tinggi) {
+        window.addEventListener('message', function (e) {
+          if (e.source === f.contentWindow && e.data && typeof e.data.tinggiBenam === 'number') {
+            f.style.height = Math.min(Math.max(e.data.tinggiBenam + 4, 150), 20000) + 'px';
+          }
+        });
+      }
+    }
+    bekas.innerHTML = '';
+    bekas.appendChild(f);
+  }
+
+  function lukisBorangSubmenu(bekas, kunci, item) {
+    const baru = !item;
+    const x = item || {};
+    const mMenu = { n: 'Menu', l: 'Menu induk', jenis: 'select', pilihan: MENU_AWAM, bantu: 'Submenu akan dipaparkan di bawah menu ini.' };
+    const mTajuk = { n: 'Tajuk', l: 'Nama submenu', wajib: true, bantu: 'Contoh: Unit beruniform, Rumah sukan, Minit mesyuarat.' };
+    const mJenis = { n: 'Jenis', l: 'Jenis halaman', jenis: 'select', pilihan: JENIS_SUBMENU };
+    const mKandungan = { n: 'Kandungan', l: 'Kandungan', jenis: 'textarea', baris: 10, bantu: 'Tekan Enter dua kali untuk memulakan perenggan baharu.' };
+    const mGambar = { n: 'Gambar', l: 'Gambar (pilihan)', jenis: 'gambar' };
+    const mKod = { n: 'KodEmbed', l: 'Kod HTML atau pautan embed', jenis: 'textarea', baris: 14,
+      bantu: 'Tampal kod HTML penuh sistem anda, kod benam (iframe) daripada Google Form atau Google Sheets, atau pautan https:// sahaja.' };
+    const mTinggi = { n: 'Tinggi', l: 'Ketinggian dalam piksel (pilihan)', jenis: 'number',
+      bantu: 'Biarkan kosong untuk ketinggian automatik. Isi (contohnya 900) jika paparan terpotong atau terlalu panjang.' };
+    const mPautan = { n: 'Pautan', l: 'Alamat laman', jenis: 'url', bantu: 'Laman ini akan dibuka dalam tab baharu apabila submenu diklik.' };
+    const mSusunan = { n: 'Susunan', l: 'Susunan dalam menu', jenis: 'number', bantu: 'Nombor kecil dipaparkan dahulu.' };
+    const mStatus = { n: 'Status', l: 'Status', jenis: 'select', pilihan: ['Papar', 'Sembunyi'], bantu: 'Submenu tersembunyi tidak dipaparkan kepada orang awam.' };
+
+    bekas.innerHTML = '<form class="borang-admin" novalidate>' +
+      '<h2>' + (baru ? 'Tambah submenu' : 'Edit submenu') + '</h2>' +
+      medanHTML(mMenu, x.Menu || 'kokurikulum') +
+      medanHTML(mTajuk, x.Tajuk) +
+      medanHTML(mJenis, x.Jenis || 'teks') +
+      '<div class="kumpulan-jenis" data-jenis="teks">' + medanHTML(mKandungan, x.Kandungan) + medanHTML(mGambar, x.Gambar) + '</div>' +
+      '<div class="kumpulan-jenis" data-jenis="embed">' +
+        medanHTML(mKod, (x.Jenis === 'embed' && !x.FailEmbed) ? x.Pautan : '') +
+        medanHTML(mTinggi, x.Tinggi) +
+        '<label class="semak"><input type="checkbox" name="AksesPenuh"' + (x.AksesPenuh === 'Ya' ? ' checked' : '') + '> Benarkan akses penuh</label>' +
+        '<small class="bantu bantu-semak">Aktifkan hanya jika sistem yang dibenamkan tidak berfungsi dengan betul (contohnya perlu menyimpan data dalam pelayar) dan anda mempercayai sepenuhnya sumber kod tersebut.</small>' +
+        '<div class="baris-butang"><button type="button" class="butang butang-biasa" data-pratonton>Pratonton</button></div>' +
+        '<div class="pratonton-benam" hidden></div>' +
+      '</div>' +
+      '<div class="kumpulan-jenis" data-jenis="pautan">' + medanHTML(mPautan, x.Jenis === 'pautan' ? x.Pautan : '') + '</div>' +
+      medanHTML(mSusunan, baru ? String((CACHE.Submenu || []).length + 1) : x.Susunan) +
+      medanHTML(mStatus, x.Status || 'Papar') +
+      '<div class="borang-tindakan">' +
+        '<button type="submit" class="butang butang-emas">' + (baru ? 'Simpan' : 'Simpan perubahan') + '</button>' +
+        '<button type="button" class="butang butang-biasa" data-batal>Batal</button>' +
+      '</div>' +
+    '</form>';
+
+    const f = bekas.querySelector('form');
+    const ta = f.elements.KodEmbed;
+    pasangMedanGambar(f);
+
+    function tukarJenis() {
+      const j = f.elements.Jenis.value;
+      f.querySelectorAll('.kumpulan-jenis').forEach(function (g) { g.hidden = g.dataset.jenis !== j; });
+    }
+    tukarJenis();
+    f.elements.Jenis.addEventListener('change', tukarJenis);
+
+    // Muatkan kod HTML sedia ada dari Google Drive
+    let kodSedia = baru || !x.FailEmbed;
+    if (!kodSedia) {
+      ta.disabled = true;
+      ta.placeholder = 'Memuatkan kod…';
+      panggil('bacaEmbedAdmin', { id: x.ID }).then(function (j) {
+        ta.value = j.data.html;
+        kodSedia = true;
+      }).catch(function (err) {
+        toast('Kod tidak dapat dimuatkan: ' + err.message, 'ralat');
+        ta.placeholder = 'Kod tidak dapat dimuatkan. Muat semula halaman dan cuba lagi.';
+      }).finally(function () { ta.disabled = false; if (kodSedia) ta.placeholder = ''; });
+    }
+
+    f.querySelector('[data-pratonton]').addEventListener('click', function () {
+      const kod = ta.value.trim();
+      const kotak = f.querySelector('.pratonton-benam');
+      if (!kod) { toast('Tampal kod HTML atau pautan dahulu.', 'ralat'); return; }
+      kotak.hidden = false;
+      const adalahUrl = /^https?:\/\/\S+$/.test(kod);
+      binaBenam(kotak, { url: adalahUrl ? kod : '', kod: adalahUrl ? '' : kod, tinggi: f.elements.Tinggi.value, aksesPenuh: f.elements.AksesPenuh.checked });
+    });
+
+    f.querySelector('[data-batal]').addEventListener('click', function () { lukisModulRekod(bekas, kunci); });
+
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (sibuk(f)) return;
+      const j = f.elements.Jenis.value;
+      const d = {
+        Menu: f.elements.Menu.value,
+        Tajuk: f.elements.Tajuk.value.trim(),
+        Jenis: j,
+        Susunan: f.elements.Susunan.value.trim(),
+        Status: f.elements.Status.value
+      };
+      if (!d.Tajuk) { toast('Sila isi nama submenu.', 'ralat'); f.elements.Tajuk.focus(); return; }
+
+      if (j === 'teks') {
+        d.Kandungan = f.elements.Kandungan.value.trim();
+        d.Gambar = f.elements.Gambar.value;
+        d.Pautan = '';
+      } else if (j === 'embed') {
+        if (!kodSedia) { toast('Kod masih dimuatkan atau gagal dimuatkan. Sila tunggu atau muat semula halaman.', 'ralat'); return; }
+        const kod = ta.value.trim();
+        if (!kod) { toast('Sila tampal kod HTML atau pautan embed.', 'ralat'); ta.focus(); return; }
+        if (/^https?:\/\/\S+$/.test(kod)) { d.Pautan = kod; d.KodEmbed = ''; }
+        else { d.KodEmbed = kod; d.Pautan = ''; }
+        d.Tinggi = f.elements.Tinggi.value.trim();
+        d.AksesPenuh = f.elements.AksesPenuh.checked ? 'Ya' : '';
+      } else {
+        let u = f.elements.Pautan.value.trim();
+        if (!u) { toast('Sila isi alamat laman.', 'ralat'); f.elements.Pautan.focus(); return; }
+        if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+        d.Pautan = u;
+      }
+
+      denganButang(f.querySelector('[type="submit"]'), 'Menyimpan…', async function () {
+        if (baru) await panggil('tambah', { tab: 'Submenu', data: d });
+        else await panggil('kemaskini', { tab: 'Submenu', id: x.ID, data: d });
+        batalCache('Submenu');
+        toast(baru ? 'Submenu berjaya ditambah.' : 'Perubahan disimpan.');
+        lukisModulRekod(bekas, kunci);
+      });
+    });
+    window.scrollTo(0, 0);
   }
 
 
