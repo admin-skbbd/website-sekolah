@@ -292,9 +292,10 @@ figcaption span { color: var(--kelabu); font-size: .92rem; }
 .cip.aktif { background: var(--biru-pekat); border-color: var(--biru-pekat); color: #fff; }
 
 /* ---------------- Pentadbiran ---------------- */
-.grid-orang { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2.25rem 1.5rem; }
-.orang { margin: 0; text-align: center; }
-.orang-utama { grid-column: 1 / -1; justify-self: center; width: min(100%, 280px); }
+.grid-orang { display: flex; flex-wrap: wrap; justify-content: center; gap: 2.5rem 2rem; }
+.orang { flex: 0 1 250px; margin: 0; text-align: center; }
+.orang-utama { flex-basis: 100%; }
+.orang-utama figcaption { max-width: 360px; margin-inline: auto; }
 .orang-foto {
   width: min(100%, 170px); aspect-ratio: 1; margin: 0 auto 1rem; overflow: hidden;
   display: grid; place-items: center; border-radius: 50%;
